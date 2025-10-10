@@ -33,44 +33,29 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .footer{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .toggle{background:#fff;color:var(--fg);border:1px solid var(--line)}
 .small{font-size:12px;opacity:.8}
-  /* 枠を強制表示（疑似要素で上に被せる） */
-.hole::after{
-  content:""; position:absolute; inset:0; border-radius:16px;
-  box-shadow: inset 0 0 0 2px var(--line); pointer-events:none;
-}
 
-/* 枠が薄い場合は少し濃くする（好みで数値調整OK） */
-:root{ --line:#d9c2af; }  /* 元 #f1e0d0 より少し濃い */
-/* ---- 枠の強制上書き：最後に置くこと ---- */
+/* ---- 枠の強制上書き：必ず最後に置く ---- */
 .hole{
   position: relative;
-  border: 2px solid #d9c2af !important;     /* 直接のボーダー（太め＆!important） */
+  border: 2px solid #d9c2af !important;     /* 太めの実線を直接 */
   box-shadow: none !important;
 }
 .hole::after{
   content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 16px;
-  pointer-events: none;
-  /* 内側にももう1本描く（背景と同化しても見える） */
+  position: absolute; inset: 0;
+  border-radius: 16px; pointer-events: none;
   box-shadow:
-    inset 0 0 0 2px #d9c2af,                /* 内側の線 */
-    0 0 0 1px rgba(0,0,0,.02);              /* ごく薄い外縁で視認性UP */
+    inset 0 0 0 2px #d9c2af,                /* 内側の線で更に強調 */
+    0 0 0 1px rgba(0,0,0,.02);              /* ごく薄い外縁 */
   z-index: 5;                                /* 子要素より上に */
 }
-
-/* 画像が縁をまたいで見づらい場合の微調整（任意） */
+/* 画像の縁（任意） */
 .face{ position: relative; }
 .face::after{
-  content:"";
-  position:absolute; inset:0;
-  border-radius:12px;
+  content:""; position:absolute; inset:0; border-radius:12px;
   box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.06);
-  pointer-events:none;
-  z-index: 1;
+  pointer-events:none; z-index:1;
 }
-
 </style>
 </head>
 <body>
@@ -107,7 +92,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
   <div class="end" id="end"></div>
   <div class="row badges" id="badges"></div>
-  <p class="notice">※ 画像はローカル配信（GitHub Pages）。痛いときは休憩。</p>
+  <p class="notice">※ 画像は /img/cat*.png を参照。痛いときは休憩。</p>
 
   <div class="footer">
     <span class="small">© neko image</span>
@@ -116,14 +101,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </div>
 
 <script>
-// ====== 設定（ここに好きな画像パスを入れてね） ======
+// ====== 画像設定（リポに img/ を作って配置） ======
 const CAT_IMAGES = [
   "img/cat1.png",
   "img/cat2.png",
   "img/cat3.png"
 ];
-// 画像プリロード
-const _pre = CAT_IMAGES.map(src => { const i=new Image(); i.src=src; return i; });
+// プリロード
+CAT_IMAGES.forEach(src=>{ const i=new Image(); i.src=src; });
 
 // ----- DOM -----
 const grid = document.getElementById('grid');
@@ -143,12 +128,12 @@ const achCount= document.getElementById('achCount');
 const fxCanvas = document.getElementById('fx');
 const ctx = fxCanvas.getContext('2d');
 
-// ----- State -----
+// ----- 状態 -----
 let cats=[],timer=null,spawner=null,running=false,paused=false;
 let score=0,left=30,combo=0,fever=false,maxCombo=0;
 let upInterval=330,peekMin=440,peekMax=920; // normal
 
-// ----- Utils -----
+// ----- ユーティリティ -----
 const ri=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const pick=arr=>arr[ri(0,arr.length-1)];
 function resizeCanvas(){
@@ -158,7 +143,7 @@ function resizeCanvas(){
 }
 addEventListener('resize', resizeCanvas);
 
-// ----- Build Grid -----
+// ----- 盤面生成 -----
 function makeGrid(){
   grid.innerHTML=''; cats=[];
   for(let i=0;i<9;i++){
@@ -178,7 +163,7 @@ function makeGrid(){
 }
 makeGrid();
 
-// ----- Difficulty -----
+// ----- 難易度 -----
 function applyDiff(){
   const d=diffSel.value;
   if(d==='easy'){ upInterval=420; peekMin=520; peekMax=1000; }
@@ -188,7 +173,7 @@ function applyDiff(){
 }
 applyDiff(); diffSel.addEventListener('change', applyDiff);
 
-// ----- Sound/Vibe -----
+// ----- 音・バイブ -----
 let audioCtx=null;
 function beep(freq=600,ms=80,vol=0.06){
   if(!soundChk.checked) return;
@@ -200,7 +185,7 @@ function beep(freq=600,ms=80,vol=0.06){
 }
 function vibro(ms=20){ if(vibeChk.checked && navigator.vibrate) navigator.vibrate(ms); }
 
-// ----- Particles -----
+// ----- パーティクル -----
 let particles=[];
 function burstAt(el,color='#ff7a59'){
   const r=el.getBoundingClientRect(), g=grid.getBoundingClientRect();
@@ -219,13 +204,13 @@ function renderFX(){
 }
 renderFX();
 
-// ----- Game -----
+// ----- ゲーム -----
 let accel=null;
 function showRandomCat(){
   if(!running||paused) return;
   const cat=pick(cats);
   if(cat.classList.contains('up')) return;
-  // ランダムに見た目の猫を入れ替え（たまに種類変化）
+  // たまに見た目の画像を変える
   if(Math.random()<0.25){
     const img=cat.querySelector('img'); img.src=pick(CAT_IMAGES);
   }
@@ -242,7 +227,6 @@ function startAccel(){
     clearInterval(spawner); loopCats();
   },3000);
 }
-
 function hit(cat){
   if(!running||paused||!cat.classList.contains('up')) return;
   cat.classList.remove('up');
@@ -259,7 +243,7 @@ function tick(){
   left--; timeEl.textContent=`残り: ${left}s`; if(left<=0) endGame();
 }
 function startGame(){
-  running=true; paused=false; combo=0; fever=false; maxCombo=0; score=0; left=30;
+  running=true; paused=false; combo=0; fever=false; maxCombo=0; score=0; left=30;  // ★ 30秒固定
   updateUI(); endBox.style.display='none'; startBtn.disabled=true;
   loopCats(); timer=setInterval(tick,1000); startAccel();
 }
@@ -274,7 +258,7 @@ function endGame(){
 // ----- UI -----
 function updateUI(){ scoreEl.textContent=`スコア: ${score}`; comboEl.textContent=`コンボ: ${combo}${fever?'（x2）':''}`; timeEl.textContent=`残り: ${left}s`; }
 const getBest=k=>+(localStorage.getItem('best_'+k)||0);
-const setBest=(k,v)=>localStorage.setItem('best_'+k', String(v));
+const setBest=(k,v)=>localStorage.setItem('best_'+k, String(v));
 function updateBest(save=false){ const k=diffSel.value; if(save && score>getBest(k)) setBest(k,score); bestEl.textContent='ベスト: '+getBest(k); }
 updateBest();
 
@@ -298,12 +282,10 @@ themeBtn.addEventListener('click',()=>{ dark=!dark;
   themeBtn.textContent = dark?'ライト':'ダーク';
 });
 
-// QoL
+// 仕上げ
 document.addEventListener('gesturestart', e=>e.preventDefault());
 document.addEventListener('contextmenu', e=>e.preventDefault(), {capture:true});
 startBtn.addEventListener('click', startGame);
 </script>
 </body>
 </html>
-
-
