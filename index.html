@@ -256,11 +256,27 @@ function endGame(){
 }
 
 // ----- UI -----
-function updateUI(){ scoreEl.textContent=`スコア: ${score}`; comboEl.textContent=`コンボ: ${combo}${fever?'（x2）':''}`; timeEl.textContent=`残り: ${left}s`; }
-const getBest=k=>+(localStorage.getItem('best_'+k)||0);
-const setBest=(k,v)=>localStorage.setItem('best_'+k, String(v));
-function updateBest(save=false){ const k=diffSel.value; if(save && score>getBest(k)) setBest(k,score); bestEl.textContent='ベスト: '+getBest(k); }
+function updateUI(){
+  scoreEl.textContent = `スコア: ${score}`;
+  comboEl.textContent = `コンボ: ${combo}${fever ? '（x2）' : ''}`;
+  timeEl.textContent  = `残り: ${left}s`;
+}
+
+// 関数宣言に変更（hoisting OK）
+function getBest(key){
+  return +(localStorage.getItem('best_' + key) || 0);
+}
+function setBest(key, val){
+  localStorage.setItem('best_' + key, String(val));
+}
+
+function updateBest(trySave = false){
+  const key = diffSel.value;
+  if (trySave && score > getBest(key)) setBest(key, score);
+  bestEl.textContent = 'ベスト: ' + getBest(key);
+}
 updateBest();
+
 
 // 実績
 const ACH=[{id:'first',cond:()=>!running&&score>0,label:'初クリア'},{id:'30',cond:()=>score>=30,label:'30点'},{id:'50',cond:()=>score>=50,label:'50点'},{id:'nomiss',cond:()=>maxCombo>0&&score===maxCombo,label:'ノーミス'}];
@@ -289,5 +305,6 @@ startBtn.addEventListener('click', startGame);
 </script>
 </body>
 </html>
+
 
 
