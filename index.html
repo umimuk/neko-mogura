@@ -283,8 +283,13 @@ function endGame(){
   if(getBest(diffSel.value) > oldBest){ beep(1100,140,0.08); } // ベスト更新効果音
   // ランキング登録
   // ランキング登録（オンライン）
-postLeaderboard(diffSel.value, (playerInput.value||'ゲスト').trim(), score, todayStr())
-  .then(()=>renderLeaderboard());
+postLeaderboard(
+  diffSel.value,
+  (playerInput.value || 'ゲスト').trim(),
+  score,
+  todayStr()
+).then(()=>renderLeaderboard()).catch(()=>{});
+
 }
 
 // ----- UI -----
@@ -363,6 +368,7 @@ startBtn.addEventListener('click', startGame);
 </script>
 </body>
 </html>
+
 
 
 
