@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>ねこモグラたたき DX（30秒・猫）</title>
+<title>ねこモグラたたき（画像版・30秒）</title>
 <style>
 :root{--bg:#fffaf0;--fg:#2b2b2b;--card:#fffaf5;--accent:#ff7a59;--line:#f1e0d0}
 *{box-sizing:border-box}
@@ -16,14 +16,13 @@ h1{margin:0 0 6px;font-size:24px}
 .tag{background:#fff;border:1px solid var(--line);padding:6px 10px;border-radius:999px;font-weight:700}
 button{border:0;background:var(--accent);color:#fff;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15)}
 button:disabled{opacity:.5;cursor:not-allowed}
-select{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
 .board{position:relative;margin:12px 0;}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .hole{aspect-ratio:1;background:var(--card);border:1px solid var(--line);border-radius:16px;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)}
 .cat{position:absolute;left:0;right:0;bottom:-100%;height:100%;display:flex;align-items:end;justify-content:center;transition:bottom .12s}
 .cat.up{bottom:0}
-.face{width:66%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:none;border:0;box-shadow:none}
-.face svg{width:100%;height:auto;display:block}
+.face{width:82%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:none;border:0}
+.face img{width:100%;height:100%;object-fit:contain;display:block;user-select:none;-webkit-user-drag:none;filter: drop-shadow(0 2px 0 rgba(0,0,0,.08))}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
 .end{padding:12px;background:#fff;border:1px dashed var(--line);border-radius:12px;display:none}
 .badges{display:flex;gap:6px;flex-wrap:wrap}
@@ -38,8 +37,8 @@ select{padding:8px 10px;border:1px solid var(--line);border-radius:10px;backgrou
 </head>
 <body>
 <div class="wrap">
-  <h1>ねこモグラたたき DX</h1>
-  <p class="sub">30秒固定・猫アイコン。Spaceで一時停止。</p>
+  <h1>ねこモグラたたき</h1>
+  <p class="sub">30秒固定・猫画像版。Spaceで一時停止。</p>
 
   <div class="row ui">
     <span class="tag" id="score">スコア: 0</span>
@@ -70,15 +69,24 @@ select{padding:8px 10px;border:1px solid var(--line);border-radius:10px;backgrou
 
   <div class="end" id="end"></div>
   <div class="row badges" id="badges"></div>
-  <p class="notice">※ ローカル保存のみ。痛いときは休憩。</p>
+  <p class="notice">※ 画像はローカル配信（GitHub Pages）。痛いときは休憩。</p>
 
   <div class="footer">
-    <span class="small">© neko dx</span>
+    <span class="small">© neko image</span>
     <span class="small">実績: <span id="achCount">0</span></span>
   </div>
 </div>
 
 <script>
+// ====== 設定（ここに好きな画像パスを入れてね） ======
+const CAT_IMAGES = [
+  "img/cat1.png",
+  "img/cat2.png",
+  "img/cat3.png"
+];
+// 画像プリロード
+const _pre = CAT_IMAGES.map(src => { const i=new Image(); i.src=src; return i; });
+
 // ----- DOM -----
 const grid = document.getElementById('grid');
 const scoreEl = document.getElementById('score');
@@ -98,34 +106,19 @@ const fxCanvas = document.getElementById('fx');
 const ctx = fxCanvas.getContext('2d');
 
 // ----- State -----
-let cats=[],timer=null,spawner=null, running=false, paused=false;
-let score=0, left=30, combo=0, fever=false, maxCombo=0;
-let upInterval=330, peekMin=440, peekMax=920; // default=normal
+let cats=[],timer=null,spawner=null,running=false,paused=false;
+let score=0,left=30,combo=0,fever=false,maxCombo=0;
+let upInterval=330,peekMin=440,peekMax=920; // normal
 
-// ----- Helpers -----
-function catSVG(){
-  return `<svg viewBox="0 0 100 100" aria-hidden="true">
-    <circle cx="50" cy="58" r="30" fill="#ffe6dc" stroke="#222" stroke-width="4"/>
-    <polygon points="33,35 18,20 20,42" fill="#ffe6dc" stroke="#222" stroke-width="4"/>
-    <polygon points="67,35 82,20 80,42" fill="#ffe6dc" stroke="#222" stroke-width="4"/>
-    <circle cx="40" cy="58" r="4" fill="#222"/>
-    <circle cx="60" cy="58" r="4" fill="#222"/>
-    <path d="M45 66 q5 6 10 0" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/>
-    <path d="M26 58 h12 M26 64 h12" stroke="#222" stroke-width="2"/>
-    <path d="M74 58 h-12 M74 64 h-12" stroke="#222" stroke-width="2"/>
-  </svg>`;
-}
-function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a }
-function chooseOne(){ return cats[randInt(0,cats.length-1)] }
+// ----- Utils -----
+const ri=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const pick=arr=>arr[ri(0,arr.length-1)];
 function resizeCanvas(){
-  const r = grid.getBoundingClientRect();
-  const w = r.width;
-  fxCanvas.width  = w * devicePixelRatio;
-  fxCanvas.height = w * devicePixelRatio;      // 正方形で描画
-  fxCanvas.style.width  = w+'px';
-  fxCanvas.style.height = w+'px';
+  const r=grid.getBoundingClientRect(), w=r.width;
+  fxCanvas.width=w*devicePixelRatio; fxCanvas.height=w*devicePixelRatio;
+  fxCanvas.style.width=w+'px'; fxCanvas.style.height=w+'px';
 }
-window.addEventListener('resize', resizeCanvas);
+addEventListener('resize', resizeCanvas);
 
 // ----- Build Grid -----
 function makeGrid(){
@@ -134,8 +127,8 @@ function makeGrid(){
     const hole=document.createElement('div'); hole.className='hole';
     const cat=document.createElement('div'); cat.className='cat';
     const face=document.createElement('div'); face.className='face';
-    face.innerHTML = catSVG(); // ← 猫SVG
-    cat.appendChild(face); hole.appendChild(cat); grid.appendChild(hole);
+    const img=document.createElement('img'); img.src=pick(CAT_IMAGES); img.alt='cat';
+    face.appendChild(img); cat.appendChild(face); hole.appendChild(cat); grid.appendChild(hole);
     cat.addEventListener('pointerdown',()=>hit(cat),{passive:true});
     hole.addEventListener('pointerdown',(e)=>{
       if(!running||paused) return;
@@ -149,14 +142,13 @@ makeGrid();
 
 // ----- Difficulty -----
 function applyDiff(){
-  const d = diffSel.value;
+  const d=diffSel.value;
   if(d==='easy'){ upInterval=420; peekMin=520; peekMax=1000; }
   if(d==='normal'){ upInterval=330; peekMin=440; peekMax=920; }
   if(d==='hard'){ upInterval=260; peekMin=360; peekMax=820; }
   updateBest();
 }
-applyDiff();
-diffSel.addEventListener('change', applyDiff);
+applyDiff(); diffSel.addEventListener('change', applyDiff);
 
 // ----- Sound/Vibe -----
 let audioCtx=null;
@@ -166,47 +158,41 @@ function beep(freq=600,ms=80,vol=0.06){
   if(!audioCtx) return;
   const o=audioCtx.createOscillator(), g=audioCtx.createGain();
   o.type='square'; o.frequency.value=freq; g.gain.value=vol;
-  o.connect(g); g.connect(audioCtx.destination); o.start();
-  setTimeout(()=>o.stop(), ms);
+  o.connect(g); g.connect(audioCtx.destination); o.start(); setTimeout(()=>o.stop(), ms);
 }
 function vibro(ms=20){ if(vibeChk.checked && navigator.vibrate) navigator.vibrate(ms); }
 
 // ----- Particles -----
 let particles=[];
-function burstAt(element, color='#ff7a59'){
-  const rect = element.getBoundingClientRect();
-  const gx   = grid.getBoundingClientRect();
-  const x = ((rect.left+rect.width/2) - gx.left) * devicePixelRatio;
-  const y = ((rect.top+rect.height/2) - gx.top) * devicePixelRatio;
+function burstAt(el,color='#ff7a59'){
+  const r=el.getBoundingClientRect(), g=grid.getBoundingClientRect();
+  const x=((r.left+r.width/2)-g.left)*devicePixelRatio;
+  const y=((r.top+r.height/2)-g.top)*devicePixelRatio;
   for(let i=0;i<14;i++){
-    particles.push({
-      x,y, vx:(Math.random()-0.5)*3*devicePixelRatio, vy:(Math.random()-0.7)*3*devicePixelRatio,
-      a:1, r:(3+Math.random()*3)*devicePixelRatio, c:color
-    });
+    particles.push({x,y,vx:(Math.random()-0.5)*3*devicePixelRatio,vy:(Math.random()-0.7)*3*devicePixelRatio,a:1,r:(3+Math.random()*3)*devicePixelRatio,c:color});
   }
 }
-const ctx2d = ctx;
 function renderFX(){
-  ctx2d.clearRect(0,0,fxCanvas.width,fxCanvas.height);
-  particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.06*devicePixelRatio; p.a-=0.02; });
-  particles = particles.filter(p=>p.a>0);
-  particles.forEach(p=>{
-    ctx2d.globalAlpha=p.a; ctx2d.beginPath(); ctx2d.arc(p.x,p.y,p.r,0,Math.PI*2);
-    ctx2d.fillStyle=p.c; ctx2d.fill();
-  });
-  ctx2d.globalAlpha=1;
-  requestAnimationFrame(renderFX);
+  ctx.clearRect(0,0,fxCanvas.width,fxCanvas.height);
+  particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.06*devicePixelRatio;p.a-=0.02});
+  particles=particles.filter(p=>p.a>0);
+  for(const p of particles){ ctx.globalAlpha=p.a; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=p.c; ctx.fill(); }
+  ctx.globalAlpha=1; requestAnimationFrame(renderFX);
 }
 renderFX();
 
-// ----- Game Loop -----
+// ----- Game -----
 let accel=null;
 function showRandomCat(){
   if(!running||paused) return;
-  const cat = chooseOne();
+  const cat=pick(cats);
   if(cat.classList.contains('up')) return;
+  // ランダムに見た目の猫を入れ替え（たまに種類変化）
+  if(Math.random()<0.25){
+    const img=cat.querySelector('img'); img.src=pick(CAT_IMAGES);
+  }
   cat.classList.add('up');
-  const upMs = randInt(peekMin, peekMax) * (fever?0.85:1);
+  const upMs=ri(peekMin,peekMax)*(fever?0.85:1);
   setTimeout(()=>cat.classList.remove('up'), upMs);
 }
 function loopCats(){ spawner=setInterval(showRandomCat, upInterval); }
@@ -222,71 +208,52 @@ function startAccel(){
 function hit(cat){
   if(!running||paused||!cat.classList.contains('up')) return;
   cat.classList.remove('up');
-  score += fever ? 2 : 1;
-  combo++;
-  if(combo>0 && combo%10===0){ fever=true; setTimeout(()=>fever=false, 4000); }
-  if(combo>maxCombo) maxCombo=combo;
-  updateUI();
-  beep(fever?900:700,70); vibro(10);
-  burstAt(cat, fever?'#ff3e9e':'#ff7a59');
+  score += fever?2:1; combo++; if(combo>0 && combo%10===0){ fever=true; setTimeout(()=>fever=false,4000); }
+  if(combo>maxCombo) maxCombo=combo; updateUI();
+  beep(fever?900:700,70); vibro(10); burstAt(cat, fever?'#ff3e9e':'#ff7a59');
 }
 function miss(){
   if(!running||paused) return;
-  score=Math.max(0, score-1);
-  combo=0; fever=false;
-  updateUI(); beep(280,90,0.05); vibro(20);
+  score=Math.max(0,score-1); combo=0; fever=false; updateUI(); beep(280,90,0.05); vibro(20);
 }
 function tick(){
   if(!running||paused) return;
-  left--; timeEl.textContent=`残り: ${left}s`;
-  if(left<=0) endGame();
+  left--; timeEl.textContent=`残り: ${left}s`; if(left<=0) endGame();
 }
-
 function startGame(){
-  running=true; paused=false; combo=0; fever=false; maxCombo=0;
-  score=0; left=30;                          // ★ 30秒固定
-  updateUI();
-  endBox.style.display='none';
-  startBtn.disabled=true;
+  running=true; paused=false; combo=0; fever=false; maxCombo=0; score=0; left=30;
+  updateUI(); endBox.style.display='none'; startBtn.disabled=true;
   loopCats(); timer=setInterval(tick,1000); startAccel();
 }
 function endGame(){
   running=false; clearInterval(timer); clearInterval(spawner); clearInterval(accel);
   startBtn.disabled=false; cats.forEach(c=>c.classList.remove('up'));
   updateBest(true); checkAchievements();
-  endBox.innerHTML = `<strong>終了！</strong> スコア <b>${score}</b>（${diffSel.selectedOptions[0].text}）。
-  コンボ最大 <b>${maxCombo}</b>。ベスト <b>${getBest(diffSel.value)}</b>`;
+  endBox.innerHTML = `<strong>終了！</strong> スコア <b>${score}</b>（${diffSel.selectedOptions[0].text}）。 コンボ最大 <b>${maxCombo}</b>。ベスト <b>${getBest(diffSel.value)}</b>`;
   endBox.style.display='block';
 }
 
 // ----- UI -----
-function updateUI(){
-  scoreEl.textContent=`スコア: ${score}`;
-  comboEl.textContent=`コンボ: ${combo}${fever?'（x2）':''}`;
-  timeEl.textContent =`残り: ${left}s`;
-}
-function getBest(key){ return +(localStorage.getItem('best_'+key)||0) }
-function setBest(key,val){ localStorage.setItem('best_'+key,String(val)) }
-function updateBest(trySave=false){
-  const key=diffSel.value;
-  if(trySave && score>getBest(key)) setBest(key,score);
-  bestEl.textContent='ベスト: '+getBest(key);
-}
+function updateUI(){ scoreEl.textContent=`スコア: ${score}`; comboEl.textContent=`コンボ: ${combo}${fever?'（x2）':''}`; timeEl.textContent=`残り: ${left}s`; }
+const getBest=k=>+(localStorage.getItem('best_'+k)||0);
+const setBest=(k,v)=>localStorage.setItem('best_'+k', String(v));
+function updateBest(save=false){ const k=diffSel.value; if(save && score>getBest(k)) setBest(k,score); bestEl.textContent='ベスト: '+getBest(k); }
 updateBest();
 
-// pause
-function togglePause(){
-  if(!running) return;
-  paused=!paused;
-  pauseBtn.textContent = paused?'再開 (Space)':'一時停止 (Space)';
-}
+// 実績
+const ACH=[{id:'first',cond:()=>!running&&score>0,label:'初クリア'},{id:'30',cond:()=>score>=30,label:'30点'},{id:'50',cond:()=>score>=50,label:'50点'},{id:'nomiss',cond:()=>maxCombo>0&&score===maxCombo,label:'ノーミス'}];
+const hasA=id=>localStorage.getItem('ach_'+id)==='1';
+const setA=id=>localStorage.setItem('ach_'+id,'1');
+function renderBadges(){ badgesEl.innerHTML=''; let c=0; for(const a of ACH){ const g=hasA(a.id); if(g)c++; const s=document.createElement('span'); s.className='badge'; s.textContent=(g?'🏅 ':'⬜ ')+a.label; badgesEl.appendChild(s);} achCount.textContent=c; }
+renderBadges();
+function checkAchievements(){ let news=[]; for(const a of ACH){ if(!hasA(a.id) && a.cond()){ setA(a.id); news.push(a.label);} } if(news.length){ renderBadges(); endBox.innerHTML+=`<br><b>実績解除：</b> ${news.join(' / ')}`; beep(1000,120,0.07); vibro(40); } maxCombo=0; }
+
+// Pause / Theme
+function togglePause(){ if(!running) return; paused=!paused; pauseBtn.textContent=paused?'再開 (Space)':'一時停止 (Space)'; }
 pauseBtn.addEventListener('click',togglePause);
 document.addEventListener('keydown',e=>{ if(e.code==='Space'){ e.preventDefault(); togglePause(); } });
-
-// theme
 let dark=false;
-themeBtn.addEventListener('click',()=>{
-  dark=!dark;
+themeBtn.addEventListener('click',()=>{ dark=!dark;
   document.documentElement.style.setProperty('--bg', dark?'#121212':'#fffaf0');
   document.documentElement.style.setProperty('--fg', dark?'#eaeaea':'#2b2b2b');
   document.documentElement.style.setProperty('--card', dark?'#1d1d1d':'#fffaf5');
@@ -296,8 +263,6 @@ themeBtn.addEventListener('click',()=>{
 // QoL
 document.addEventListener('gesturestart', e=>e.preventDefault());
 document.addEventListener('contextmenu', e=>e.preventDefault(), {capture:true});
-
-// wires
 startBtn.addEventListener('click', startGame);
 </script>
 </body>
