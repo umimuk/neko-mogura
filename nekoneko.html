@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>ねこモグラたたき DX</title>
+<style>
+:root{--bg:#fffaf0;--fg:#2b2b2b;--card:#fffaf5;--accent:#ff7a59;--line:#f1e0d0}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto;color:var(--fg);background:var(--bg);display:flex}
+.wrap{margin:auto;width:min(560px,94vw);min-height:100svh;display:flex;flex-direction:column;padding:14px}
+h1{margin:0 0 6px;font-size:24px}
+.sub{opacity:.8;margin:0 0 12px}
+.ui{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tag{background:#fff;border:1px solid var(--line);padding:6px 10px;border-radius:999px;font-weight:700}
+button{border:0;background:var(--accent);color:#fff;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+button:disabled{opacity:.5;cursor:not-allowed}
+select{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.board{position:relative; margin:12px 0; }
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.hole{aspect-ratio:1;background:var(--card);border:1px solid var(--line);border-radius:16px;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.cat{position:absolute;left:0;right:0;bottom:-100%;height:100%;display:flex;align-items:end;justify-content:center;transition:bottom .12s}
+.cat.up{bottom:0}
+.face{width:66%;aspect-ratio:1;background:
+  radial-gradient(circle at 50% 55%, #ffc9b9 0 34%, transparent 35%),
+  radial-gradient(circle at 36% 45%, #000 0 4%, transparent 4.5%),
+  radial-gradient(circle at 64% 45%, #000 0 4%, transparent 4.5%),
+  radial-gradient(ellipse at 50% 66%, #000 0 3.5%, transparent 4%), #ffe6dc;
+  border:4px solid #2b2b2b;border-radius:50%;box-shadow:inset 0 -8px 0 #ffd4c7}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.end{padding:12px;background:#fff;border:1px dashed var(--line);border-radius:12px;display:none}
+.badges{display:flex;gap:6px;flex-wrap:wrap}
+.badge{font-size:12px;border:1px solid var(--line);background:#fff;padding:4px 8px;border-radius:999px}
+.kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:#fff;border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:12px}
+.notice{font-size:12px;opacity:.75}
+.canvas{position:absolute;inset:0;pointer-events:none}
+.footer{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.toggle{background:#fff;color:var(--fg);border:1px solid var(--line)}
+.small{font-size:12px;opacity:.8}
+/* ねこ感アップ：耳＋ヒゲ */
+.face{ position: relative; }
+/* 耳（45度回転した四角でOK） */
+.face::before,
+.face::after{
+  content:"";
+  position:absolute;
+  top:-10%;
+  width:28%;
+  height:28%;
+  background:#ffe6dc;
+  border:4px solid #2b2b2b;
+  border-bottom:none;
+  border-right-color:#2b2b2b;
+  transform:rotate(45deg);
+  border-radius:8px;
+}
+.face::before{ left:12%; }
+.face::after { right:12%; }
+/* ヒゲ */
+.face > i, .face > i::before, .face > i::after{
+  content:"";
+  position:absolute;
+  left:50%; top:62%;
+  width:36%; height:3.5px; background:#2b2b2b;
+  transform-origin:left center;
+  border-radius:2px;
+}
+.face > i{ transform:translateX(-50%) rotate(0deg); }
+.face > i::before{ transform:translate(-50%,-10px) rotate(-10deg); width:34%; }
+.face > i::after { transform:translate(-50%, 10px) rotate(10deg);  width:34%; }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ねこモグラたたき DX</h1>
+  <p class="sub">難易度・コンボ・実績付き。Spaceで一時停止。</p>
+
+  <div class="row ui">
+    <span class="tag" id="score">スコア: 0</span>
+    <span class="tag" id="combo">コンボ: 0</span>
+    <span class="tag" id="time">残り: 60s</span>
+    <span class="tag" id="best">ベスト: 0</span>
+    <button id="start">スタート</button>
+    <button id="pause" class="toggle">一時停止 <span class="kbd">Space</span></button>
+  </div>
+
+  <div class="row">
+    <label>難易度
+      <select id="diff">
+        <option value="easy">やさしい</option>
+        <option value="normal" selected>ふつう</option>
+        <option value="hard">むずい</option>
+      </select>
+    </label>
+    <label>制限時間
+      <select id="len">
+        <option>30</option><option selected>60</option><option>90</option>
+      </select> 秒
+    </label>
+    <button id="theme" class="toggle">ダーク</button>
+    <button id="lefty" class="toggle">左利き</button>
+    <label class="small"><input type="checkbox" id="sound" checked> 効果音</label>
+    <label class="small"><input type="checkbox" id="vibe" checked> バイブ</label>
+  </div>
+
+  <div class="board">
+    <canvas class="canvas" id="fx"></canvas>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="end" id="end"></div>
+  <div class="row badges" id="badges"></div>
+  <p class="notice">※ 効果音はブラウザの音量に依存。痛みが強いときは無理せず。</p>
+
+  <div class="footer">
+    <span class="small">© neko dx — ローカル保存のみ</span>
+    <span class="small">実績: <span id="achCount">0</span></span>
+  </div>
+</div>
+
+<script>
+const grid = document.getElementById('grid');
+const scoreEl = document.getElementById('score');
+const timeEl  = document.getElementById('time');
+const startBtn= document.getElementById('start');
+const endBox  = document.getElementById('end');
+const bestEl  = document.getElementById('best');
+const comboEl = document.getElementById('combo');
+const diffSel = document.getElementById('diff');
+const lenSel  = document.getElementById('len');
+const pauseBtn= document.getElementById('pause');
+const themeBtn= document.getElementById('theme');
+const leftBtn = document.getElementById('lefty');
+const soundChk= document.getElementById('sound');
+const vibeChk = document.getElementById('vibe');
+const badgesEl= document.getElementById('badges');
+const achCount= document.getElementById('achCount');
+
+const fxCanvas = document.getElementById('fx');
+const ctx = fxCanvas.getContext('2d');
+
+let cats=[],timer=null,spawner=null, running=false, paused=false;
+let score=0, left=60, combo=0, fever=false;
+let upInterval=400, peekMin=420, peekMax=900;
+
+function resizeCanvas(){
+  const rect = grid.getBoundingClientRect();
+  fxCanvas.width = rect.width * devicePixelRatio;
+  fxCanvas.height= rect.width * devicePixelRatio; // grid is square-ish (3x3)
+  fxCanvas.style.width = rect.width+'px';
+  fxCanvas.style.height= rect.width+'px';
+}
+window.addEventListener('resize', resizeCanvas);
+
+function makeGrid(){
+  grid.innerHTML=''; cats=[];
+  for(let i=0;i<9;i++){
+    const hole=document.createElement('div'); hole.className='hole';
+    const cat=document.createElement('div'); cat.className='cat';
+    const face=document.createElement('div'); face.className='face';
+    cat.appendChild(face); hole.appendChild(cat); grid.appendChild(hole);
+    cat.addEventListener('pointerdown',()=>hit(cat),{passive:true});
+    hole.addEventListener('pointerdown',(e)=>{
+      if(!running||paused) return;
+      if(!e.target.closest('.cat.up')) miss();
+    },{passive:true});
+    cats.push(cat);
+  }
+  resizeCanvas();
+}
+makeGrid();
+
+// difficulty tuning
+function applyDiff(){
+  const d = diffSel.value;
+  if(d==='easy'){ upInterval=420; peekMin=520; peekMax=1000; }
+  if(d==='normal'){ upInterval=330; peekMin=440; peekMax=920; }
+  if(d==='hard'){ upInterval=260; peekMin=360; peekMax=820; }
+  updateBest();
+}
+applyDiff();
+diffSel.addEventListener('change', applyDiff);
+
+// sound
+let audioCtx=null;
+function beep(freq=600,ms=80,vol=0.06){
+  if(!soundChk.checked) return;
+  if(!audioCtx) { try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch{} }
+  if(!audioCtx) return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type='square'; o.frequency.value=freq;
+  g.gain.value=vol; o.connect(g); g.connect(audioCtx.destination);
+  o.start(); setTimeout(()=>{o.stop();}, ms);
+}
+function vibro(ms=20){ if(vibeChk.checked && navigator.vibrate) navigator.vibrate(ms); }
+
+// particles
+function burstAt(element, color='#ff7a59'){
+  const rect = element.getBoundingClientRect();
+  const gx   = grid.getBoundingClientRect();
+  const x = ((rect.left+rect.width/2) - gx.left) * devicePixelRatio;
+  const y = ((rect.top+rect.height/2) - gx.top) * devicePixelRatio;
+  for(let i=0;i<14;i++){
+    particles.push({
+      x,y, vx:(Math.random()-0.5)*3*devicePixelRatio, vy:(Math.random()-0.7)*3*devicePixelRatio,
+      a:1, r: (3+Math.random()*3)*devicePixelRatio, c:color
+    });
+  }
+}
+let particles=[];
+function renderFX(){
+  ctx.clearRect(0,0,fxCanvas.width,fxCanvas.height);
+  particles.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.06*devicePixelRatio; p.a-=0.02;
+  });
+  particles = particles.filter(p=>p.a>0);
+  particles.forEach(p=>{
+    ctx.globalAlpha=p.a;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=p.c; ctx.fill();
+  });
+  ctx.globalAlpha=1;
+  requestAnimationFrame(renderFX);
+}
+renderFX();
+
+function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a }
+function chooseOne(){ return cats[randInt(0,cats.length-1)] }
+
+function showRandomCat(){
+  if(!running||paused) return;
+  const cat = chooseOne();
+  if(cat.classList.contains('up')) return;
+  cat.classList.add('up');
+  const upMs = randInt(peekMin, peekMax) * (fever?0.85:1);
+  setTimeout(()=>cat.classList.remove('up'), upMs);
+}
+
+function loopCats(){ spawner = setInterval(showRandomCat, upInterval); }
+
+function hit(cat){
+  if(!running||paused||!cat.classList.contains('up')) return;
+  cat.classList.remove('up');
+  score += fever ? 2 : 1;
+  combo++;
+  if(combo>0 && combo%10===0){ fever=true; setTimeout(()=>fever=false, 4000); }
+  updateUI();
+  beep(fever?900:700,70); vibro(10);
+  burstAt(cat, fever?'#ff3e9e':'#ff7a59');
+}
+
+function miss(){
+  if(!running||paused) return;
+  score = Math.max(0, score-1);
+  combo = 0; fever=false;
+  updateUI();
+  beep(280,90,0.05); vibro(20);
+}
+
+function tick(){
+  if(!running||paused) return;
+  left--; timeEl.textContent = `残り: ${left}s`;
+  if(left<=0){ endGame(); }
+}
+
+function startGame(){
+  running=true; paused=false; combo=0; fever=false;
+  score=0; left= +lenSel.value;
+  updateUI();
+  endBox.style.display='none';
+  startBtn.disabled=true;
+  loopCats();
+  timer = setInterval(tick,1000);
+}
+
+function endGame(){
+  running=false; clearInterval(timer); clearInterval(spawner);
+  startBtn.disabled=false;
+  const msg = getEndMsg();
+  endBox.innerHTML = msg; endBox.style.display='block';
+  cats.forEach(c=>c.classList.remove('up'));
+  updateBest(true);
+  checkAchievements();
+}
+
+function getEndMsg(){
+  const d=diffSel.value, b=getBest(d);
+  return `<strong>終了！</strong> スコア <b>${score}</b>（${diffSel.selectedOptions[0].text}）。<br>
+  コンボ最大 <b>${maxCombo}</b>。${fever?'フィーバー中に終了！':''}<br>
+  ベスト: <b>${getBest(d)}</b>`;
+}
+
+let maxCombo=0;
+function updateUI(){
+  scoreEl.textContent = `スコア: ${score}`;
+  comboEl.textContent = `コンボ: ${combo}${fever?'（x2）':''}`;
+  timeEl.textContent  = `残り: ${left}s`;
+  if(combo>maxCombo) maxCombo=combo;
+}
+
+function getBest(key){ return +(localStorage.getItem('best_'+key)||0) }
+function setBest(key,val){ localStorage.setItem('best_'+key, String(val)) }
+function updateBest(trySave=false){
+  const key=diffSel.value;
+  if(trySave && score>getBest(key)) setBest(key,score);
+  bestEl.textContent = 'ベスト: ' + getBest(key);
+}
+updateBest();
+
+// pause
+function togglePause(){
+  if(!running) return;
+  paused=!paused;
+  pauseBtn.textContent = paused?'再開 (Space)':'一時停止 (Space)';
+}
+pauseBtn.addEventListener('click', togglePause);
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){ e.preventDefault(); togglePause(); }
+});
+
+// theme toggle
+let dark=false;
+themeBtn.addEventListener('click',()=>{
+  dark=!dark;
+  document.documentElement.style.setProperty('--bg', dark?'#121212':'#fffaf0');
+  document.documentElement.style.setProperty('--fg', dark?'#eaeaea':'#2b2b2b');
+  document.documentElement.style.setProperty('--card', dark?'#1d1d1d':'#fffaf5');
+  themeBtn.textContent = dark?'ライト':'ダーク';
+});
+
+// left-handed (swap grid columns for親指アクセス)
+let lefty=false;
+leftBtn.addEventListener('click',()=>{
+  lefty=!lefty;
+  grid.style.gridTemplateColumns = lefty ? '1fr 1fr 1fr' : 'repeat(3,1fr)'; // same columns
+  // 右端・左端のパディング操作など、拡張余地あり
+  leftBtn.textContent = lefty?'右利き':'左利き';
+});
+
+startBtn.addEventListener('click', startGame);
+
+// ---- Achievements ----
+const ACH = [
+  {id:'first_clear',  cond:()=>!running && score>0, label:'初クリア'},
+  {id:'score_30',     cond:()=>score>=30, label:'30点到達'},
+  {id:'score_50',     cond:()=>score>=50, label:'50点到達'},
+  {id:'no_miss',      cond:()=>maxCombo>0 && score>0 && score===maxCombo, label:'ノーミス'},
+];
+function hasAch(id){ return localStorage.getItem('ach_'+id)==='1' }
+function setAch(id){ localStorage.setItem('ach_'+id,'1') }
+function renderBadges(){
+  badgesEl.innerHTML='';
+  let count=0;
+  for(const a of ACH){
+    const got = hasAch(a.id);
+    if(got) count++;
+    const el=document.createElement('span');
+    el.className='badge';
+    el.textContent = (got?'🏅 ':'⬜ ')+a.label;
+    badgesEl.appendChild(el);
+  }
+  achCount.textContent = count;
+}
+renderBadges();
+
+function checkAchievements(){
+  let newOnes=[];
+  for(const a of ACH){
+    if(!hasAch(a.id) && a.cond()){ setAch(a.id); newOnes.push(a.label); }
+  }
+  if(newOnes.length){
+    renderBadges();
+    endBox.innerHTML += `<br><b>実績解除：</b> ${newOnes.join(' / ')}`;
+    beep(1000,120,0.07); vibro(40);
+  }
+  // reset combo tracker for next run
+  maxCombo=0;
+}
+
+// Quality-of-life: prevent long-press selection
+document.addEventListener('gesturestart', e=>e.preventDefault());
+document.addEventListener('contextmenu', e=>e.preventDefault(), {capture:true});
+
+// Dynamic spawn rate over time（じわっと加速）
+let accel=null;
+function startAccel(){
+  if(accel) clearInterval(accel);
+  accel = setInterval(()=>{
+    if(!running||paused) return;
+    upInterval = Math.max(200, upInterval-3);
+    clearInterval(spawner); loopCats();
+  }, 3000);
+}
+startBtn.addEventListener('click', startAccel);
+
+</script>
+</body>
+</html>
