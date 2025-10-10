@@ -313,10 +313,10 @@ function checkAchievements(){ let news=[]; for(const a of ACH){ if(!hasA(a.id) &
 
 // ----- ランキング（オンライン/GAS） -----
 async function fetchLeaderboard(diff){
-  const url = `${API_BASE}?diff=${encodeURIComponent(diff)}&origin=${encodeURIComponent(location.origin)}`;
-  const res = await fetch(url, { method:'GET' });
+  const res = await fetch(`${API_BASE}?diff=${encodeURIComponent(diff)}`);
   const j = await res.json();
   return (j && j.rows) || [];
+
 }
 async function postLeaderboard(diff, name, score, date){
   try{
@@ -368,6 +368,7 @@ startBtn.addEventListener('click', startGame);
 </script>
 </body>
 </html>
+
 
 
 
