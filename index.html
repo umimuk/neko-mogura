@@ -161,28 +161,35 @@ addEventListener('resize', resizeCanvas);
 
 // ----- 盤面生成 -----
 function makeGrid(){
-  grid.innerHTML=''; cats=[];
-  for(let i=0;i<9;i++){
-    const hole=document.createElement('div'); hole.className='hole';
-    const cat=document.createElement('div'); cat.className='cat';
-    const face=document.createElement('div'); face.className='face';
-    const img=document.createElement('img'); img.src=pick(CAT_IMAGES); img.alt='cat';
-    face.appendChild(img); cat.appendChild(face); hole.appendChild(cat); grid.appendChild(hole);
+  grid.innerHTML = '';
+  cats = [];
+
+  for (let i = 0; i < 9; i++) {
+    const hole = document.createElement('div'); hole.className = 'hole';
+    const cat  = document.createElement('div');  cat.className  = 'cat';
+    const face = document.createElement('div');  face.className = 'face';
+    const img  = document.createElement('img');  img.src = pick(CAT_IMAGES); img.alt='cat';
+
+    face.appendChild(img);
+    cat.appendChild(face);
+    hole.appendChild(cat);
+    grid.appendChild(hole);
     cats.push(cat);
 
-    // ← これ1本だけにする（catへのリスナーは削除）
-    hole.addEventListener('pointerdown', (e)=>{
-      if(!running || paused) return;
-      // 穴の中のcatが“出てる”ならヒット、出てなければミス
-      if(cat.classList.contains('up')) { hit(cat); }
-      else { miss(); }
-    }, {passive:true});
+    // ← ここだけで判定（cat側のリスナーは付けない）
+    hole.addEventListener('pointerdown', (e) => {
+      if (!running || paused) return;
+      if (cat.classList.contains('up')) {   // 出てたらヒット
+        hit(cat);
+      } else {                              // 出てなければミス
+        miss();
+      }
+    }, { passive: true });
   }
+
   resizeCanvas();
 }
 
-}
-makeGrid();
 
 // ----- 難易度 -----
 function applyDiff(){
@@ -356,5 +363,6 @@ startBtn.addEventListener('click', startGame);
 </script>
 </body>
 </html>
+
 
 
