@@ -3,19 +3,20 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>ねこモグラたたき（画像版・30秒）</title>
+<title>ねこモグラたたき（画像版・30秒・ランキング）</title>
 <style>
 :root{--bg:#fffaf0;--fg:#2b2b2b;--card:#fffaf5;--accent:#ff7a59;--line:#f1e0d0}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto;color:var(--fg);background:var(--bg);display:flex}
-.wrap{margin:auto;width:min(560px,94vw);min-height:100svh;display:flex;flex-direction:column;padding:14px}
+.wrap{margin:auto;width:min(720px,94vw);min-height:100svh;display:flex;flex-direction:column;padding:14px}
 h1{margin:0 0 6px;font-size:24px}
 .sub{opacity:.8;margin:0 0 12px}
 .ui{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .tag{background:#fff;border:1px solid var(--line);padding:6px 10px;border-radius:999px;font-weight:700}
 button{border:0;background:var(--accent);color:#fff;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15)}
 button:disabled{opacity:.5;cursor:not-allowed}
+input[type="text"]{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;min-width:140px}
 .board{position:relative;margin:12px 0;}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .hole{aspect-ratio:1;background:var(--card);border:1px solid var(--line);border-radius:16px;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)}
@@ -34,34 +35,30 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .toggle{background:#fff;color:var(--fg);border:1px solid var(--line)}
 .small{font-size:12px;opacity:.8}
 
-/* ---- 枠の強制上書き：必ず最後に置く ---- */
-.hole{
-  position: relative;
-  border: 2px solid #d9c2af !important;     /* 太めの実線を直接 */
-  box-shadow: none !important;
-}
+/* ランキング表 */
+.table{width:100%; border-collapse:separate; border-spacing:0; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden}
+.table th,.table td{padding:8px 10px; border-bottom:1px solid #f0e6da; font-size:14px}
+.table th{background:#fffaf5; text-align:left}
+.table tr:last-child td{border-bottom:none}
+.rankNo{width:48px; text-align:center; font-weight:700}
+
+/* ---- 枠の強制上書き（最後に置く） ---- */
+.hole{ border:2px solid #d9c2af !important; box-shadow:none !important; }
 .hole::after{
-  content: "";
-  position: absolute; inset: 0;
-  border-radius: 16px; pointer-events: none;
-  box-shadow:
-    inset 0 0 0 2px #d9c2af,                /* 内側の線で更に強調 */
-    0 0 0 1px rgba(0,0,0,.02);              /* ごく薄い外縁 */
-  z-index: 5;                                /* 子要素より上に */
+  content:""; position:absolute; inset:0; border-radius:16px; pointer-events:none;
+  box-shadow: inset 0 0 0 2px #d9c2af, 0 0 0 1px rgba(0,0,0,.02); z-index:5;
 }
-/* 画像の縁（任意） */
-.face{ position: relative; }
+.face{ position:relative; }
 .face::after{
   content:""; position:absolute; inset:0; border-radius:12px;
-  box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.06);
-  pointer-events:none; z-index:1;
+  box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.06); pointer-events:none; z-index:1;
 }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>ねこモグラたたき</h1>
-  <p class="sub">30秒固定・猫画像版。Spaceで一時停止。</p>
+  <p class="sub">30秒固定・猫画像版。Spaceで一時停止。ランキングは端末ごとに保存。</p>
 
   <div class="row ui">
     <span class="tag" id="score">スコア: 0</span>
@@ -70,9 +67,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
     <span class="tag" id="best">ベスト: 0</span>
     <button id="start">スタート</button>
     <button id="pause" class="toggle">一時停止 <span class="kbd">Space</span></button>
+    <button id="share" class="toggle">共有</button>
   </div>
 
   <div class="row">
+    <label>名前 <input id="player" type="text" placeholder="ゲスト"></label>
     <label>難易度
       <select id="diff">
         <option value="easy">やさしい</option>
@@ -92,7 +91,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
   <div class="end" id="end"></div>
   <div class="row badges" id="badges"></div>
-  <p class="notice">※ 画像は /img/cat*.png を参照。痛いときは休憩。</p>
+
+  <h3 style="margin:14px 0 6px">🏆 ランキング（<span id="lbTitle">ふつう</span>）</h3>
+  <table class="table" id="lb">
+    <thead><tr><th class="rankNo">#</th><th>名前</th><th>スコア</th><th>日付</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <p class="notice">※ ランキングはこの端末/ブラウザにだけ保存（localStorage）。</p>
 
   <div class="footer">
     <span class="small">© neko image</span>
@@ -102,12 +108,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
 <script>
 // ====== 画像設定（リポに img/ を作って配置） ======
-const CAT_IMAGES = [
-  "img/cat1.png",
-  "img/cat2.png",
-  "img/cat3.png"
-];
-// プリロード
+const CAT_IMAGES = ["img/cat1.png","img/cat2.png","img/cat3.png"];
 CAT_IMAGES.forEach(src=>{ const i=new Image(); i.src=src; });
 
 // ----- DOM -----
@@ -127,15 +128,27 @@ const badgesEl= document.getElementById('badges');
 const achCount= document.getElementById('achCount');
 const fxCanvas = document.getElementById('fx');
 const ctx = fxCanvas.getContext('2d');
+const playerInput = document.getElementById('player');
+const shareBtn = document.getElementById('share');
+const lbTable = document.getElementById('lb').querySelector('tbody');
+const lbTitle = document.getElementById('lbTitle');
 
 // ----- 状態 -----
 let cats=[],timer=null,spawner=null,running=false,paused=false;
 let score=0,left=30,combo=0,fever=false,maxCombo=0;
 let upInterval=330,peekMin=440,peekMax=920; // normal
 
+// 名前保存/復元
+playerInput.value = localStorage.getItem('player_name') || '';
+playerInput.addEventListener('change', ()=>localStorage.setItem('player_name', playerInput.value.trim()));
+
 // ----- ユーティリティ -----
 const ri=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const pick=arr=>arr[ri(0,arr.length-1)];
+function todayStr(){
+  const d=new Date(); const m=d.getMonth()+1, day=d.getDate();
+  return `${d.getFullYear()}/${String(m).padStart(2,'0')}/${String(day).padStart(2,'0')}`;
+}
 function resizeCanvas(){
   const r=grid.getBoundingClientRect(), w=r.width;
   fxCanvas.width=w*devicePixelRatio; fxCanvas.height=w*devicePixelRatio;
@@ -169,7 +182,8 @@ function applyDiff(){
   if(d==='easy'){ upInterval=420; peekMin=520; peekMax=1000; }
   if(d==='normal'){ upInterval=330; peekMin=440; peekMax=920; }
   if(d==='hard'){ upInterval=260; peekMin=360; peekMax=820; }
-  updateBest();
+  updateBest(); renderLeaderboard();
+  lbTitle.textContent = diffSel.selectedOptions[0].text;
 }
 applyDiff(); diffSel.addEventListener('change', applyDiff);
 
@@ -210,10 +224,7 @@ function showRandomCat(){
   if(!running||paused) return;
   const cat=pick(cats);
   if(cat.classList.contains('up')) return;
-  // たまに見た目の画像を変える
-  if(Math.random()<0.25){
-    const img=cat.querySelector('img'); img.src=pick(CAT_IMAGES);
-  }
+  if(Math.random()<0.25){ const img=cat.querySelector('img'); img.src=pick(CAT_IMAGES); }
   cat.classList.add('up');
   const upMs=ri(peekMin,peekMax)*(fever?0.85:1);
   setTimeout(()=>cat.classList.remove('up'), upMs);
@@ -243,50 +254,83 @@ function tick(){
   left--; timeEl.textContent=`残り: ${left}s`; if(left<=0) endGame();
 }
 function startGame(){
-  running=true; paused=false; combo=0; fever=false; maxCombo=0; score=0; left=30;  // ★ 30秒固定
+  running=true; paused=false; combo=0; fever=false; maxCombo=0; score=0; left=30;
   updateUI(); endBox.style.display='none'; startBtn.disabled=true;
   loopCats(); timer=setInterval(tick,1000); startAccel();
 }
 function endGame(){
   running=false; clearInterval(timer); clearInterval(spawner); clearInterval(accel);
   startBtn.disabled=false; cats.forEach(c=>c.classList.remove('up'));
+  const oldBest = getBest(diffSel.value);
   updateBest(true); checkAchievements();
   endBox.innerHTML = `<strong>終了！</strong> スコア <b>${score}</b>（${diffSel.selectedOptions[0].text}）。 コンボ最大 <b>${maxCombo}</b>。ベスト <b>${getBest(diffSel.value)}</b>`;
   endBox.style.display='block';
+  if(getBest(diffSel.value) > oldBest){ beep(1100,140,0.08); } // ベスト更新効果音
+  // ランキング登録
+  saveLeaderboardEntry(diffSel.value, (playerInput.value||'ゲスト').trim(), score);
+  renderLeaderboard();
 }
 
 // ----- UI -----
-function updateUI(){
-  scoreEl.textContent = `スコア: ${score}`;
-  comboEl.textContent = `コンボ: ${combo}${fever ? '（x2）' : ''}`;
-  timeEl.textContent  = `残り: ${left}s`;
-}
-
-// 関数宣言に変更（hoisting OK）
-function getBest(key){
-  return +(localStorage.getItem('best_' + key) || 0);
-}
-function setBest(key, val){
-  localStorage.setItem('best_' + key, String(val));
-}
-
-function updateBest(trySave = false){
-  const key = diffSel.value;
-  if (trySave && score > getBest(key)) setBest(key, score);
+function updateUI(){ scoreEl.textContent=`スコア: ${score}`; comboEl.textContent=`コンボ: ${combo}${fever?'（x2）':''}`; timeEl.textContent=`残り: ${left}s`; }
+function getBest(key){ return +(localStorage.getItem('best_'+key) || 0); }
+function setBest(key,val){ localStorage.setItem('best_'+key, String(val)); }
+function updateBest(trySave=false){
+  const key=diffSel.value;
+  if(trySave && score>getBest(key)) setBest(key,score);
   bestEl.textContent = 'ベスト: ' + getBest(key);
 }
 updateBest();
 
-
 // 実績
 const ACH=[{id:'first',cond:()=>!running&&score>0,label:'初クリア'},{id:'30',cond:()=>score>=30,label:'30点'},{id:'50',cond:()=>score>=50,label:'50点'},{id:'nomiss',cond:()=>maxCombo>0&&score===maxCombo,label:'ノーミス'}];
-const hasA=id=>localStorage.getItem('ach_'+id)==='1';
-const setA=id=>localStorage.setItem('ach_'+id,'1');
+function hasA(id){ return localStorage.getItem('ach_'+id)==='1'; }
+function setA(id){ localStorage.setItem('ach_'+id,'1'); }
 function renderBadges(){ badgesEl.innerHTML=''; let c=0; for(const a of ACH){ const g=hasA(a.id); if(g)c++; const s=document.createElement('span'); s.className='badge'; s.textContent=(g?'🏅 ':'⬜ ')+a.label; badgesEl.appendChild(s);} achCount.textContent=c; }
 renderBadges();
 function checkAchievements(){ let news=[]; for(const a of ACH){ if(!hasA(a.id) && a.cond()){ setA(a.id); news.push(a.label);} } if(news.length){ renderBadges(); endBox.innerHTML+=`<br><b>実績解除：</b> ${news.join(' / ')}`; beep(1000,120,0.07); vibro(40); } maxCombo=0; }
 
-// Pause / Theme
+// ----- ランキング（localStorage, 上位10, 難易度別） -----
+function lbKey(d){ return 'lb_'+d; }
+function loadLeaderboard(d){
+  try{ return JSON.parse(localStorage.getItem(lbKey(d))||'[]'); }catch{ return []; }
+}
+function saveLeaderboard(d, arr){
+  localStorage.setItem(lbKey(d), JSON.stringify(arr));
+}
+function saveLeaderboardEntry(d, name, sc){
+  const arr = loadLeaderboard(d);
+  arr.push({name:name.slice(0,20)||'ゲスト', score:sc, date:todayStr()});
+  arr.sort((a,b)=>b.score-a.score);           // 降順
+  const top = arr.slice(0,10);
+  saveLeaderboard(d, top);
+}
+function renderLeaderboard(){
+  const arr = loadLeaderboard(diffSel.value);
+  lbTable.innerHTML = '';
+  if(arr.length===0){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="rankNo">-</td><td colspan="3" style="opacity:.7">まだ記録がありません</td>`;
+    lbTable.appendChild(tr); return;
+  }
+  arr.forEach((row,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td class="rankNo">${i+1}</td><td>${escapeHtml(row.name)}</td><td><b>${row.score}</b></td><td>${row.date}</td>`;
+    lbTable.appendChild(tr);
+  });
+}
+function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+renderLeaderboard();
+
+// 共有
+shareBtn.addEventListener('click', async ()=>{
+  const txt = `ねこモグラたたき（${diffSel.selectedOptions[0].text}）でスコア ${score}！`;
+  const url = location.href;
+  if (navigator.share){ try{ await navigator.share({title:'ねこモグラたたき', text:txt, url}); }catch{} }
+  else { prompt('このURLをシェア', url); }
+});
+
+// Pause / Theme / 他
 function togglePause(){ if(!running) return; paused=!paused; pauseBtn.textContent=paused?'再開 (Space)':'一時停止 (Space)'; }
 pauseBtn.addEventListener('click',togglePause);
 document.addEventListener('keydown',e=>{ if(e.code==='Space'){ e.preventDefault(); togglePause(); } });
@@ -297,14 +341,9 @@ themeBtn.addEventListener('click',()=>{ dark=!dark;
   document.documentElement.style.setProperty('--card', dark?'#1d1d1d':'#fffaf5');
   themeBtn.textContent = dark?'ライト':'ダーク';
 });
-
-// 仕上げ
 document.addEventListener('gesturestart', e=>e.preventDefault());
 document.addEventListener('contextmenu', e=>e.preventDefault(), {capture:true});
 startBtn.addEventListener('click', startGame);
 </script>
 </body>
 </html>
-
-
-
