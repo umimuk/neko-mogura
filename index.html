@@ -33,6 +33,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .footer{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .toggle{background:#fff;color:var(--fg);border:1px solid var(--line)}
 .small{font-size:12px;opacity:.8}
+  /* 枠を強制表示（疑似要素で上に被せる） */
+.hole::after{
+  content:""; position:absolute; inset:0; border-radius:16px;
+  box-shadow: inset 0 0 0 2px var(--line); pointer-events:none;
+}
+
+/* 枠が薄い場合は少し濃くする（好みで数値調整OK） */
+:root{ --line:#d9c2af; }  /* 元 #f1e0d0 より少し濃い */
+
 </style>
 </head>
 <body>
@@ -267,3 +276,4 @@ startBtn.addEventListener('click', startGame);
 </script>
 </body>
 </html>
+
