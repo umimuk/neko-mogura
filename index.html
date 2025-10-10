@@ -168,14 +168,19 @@ function makeGrid(){
     const face=document.createElement('div'); face.className='face';
     const img=document.createElement('img'); img.src=pick(CAT_IMAGES); img.alt='cat';
     face.appendChild(img); cat.appendChild(face); hole.appendChild(cat); grid.appendChild(hole);
-    cat.addEventListener('pointerdown',()=>hit(cat),{passive:true});
-    hole.addEventListener('pointerdown',(e)=>{
-      if(!running||paused) return;
-      if(!e.target.closest('.cat.up')) miss();
-    },{passive:true});
     cats.push(cat);
+
+    // ← これ1本だけにする（catへのリスナーは削除）
+    hole.addEventListener('pointerdown', (e)=>{
+      if(!running || paused) return;
+      // 穴の中のcatが“出てる”ならヒット、出てなければミス
+      if(cat.classList.contains('up')) { hit(cat); }
+      else { miss(); }
+    }, {passive:true});
   }
   resizeCanvas();
+}
+
 }
 makeGrid();
 
@@ -351,4 +356,5 @@ startBtn.addEventListener('click', startGame);
 </script>
 </body>
 </html>
+
 
