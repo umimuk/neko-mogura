@@ -25,7 +25,9 @@ select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background
 .grid{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;z-index:1}
 
 .hole{position:relative;aspect-ratio:1;background:var(--card);border-radius:16px;overflow:hidden;
-      border:none; outline:none; box-shadow:none}
+      border:2px solid #d9c2af; outline:none; box-shadow:none}
+.hole::after{content:""; position:absolute; inset:0; border-radius:16px; pointer-events:none;
+             box-shadow: inset 0 0 0 2px #d9c2af; z-index:5}
 
 .cat{position:absolute;left:0;right:0;bottom:-100%;height:100%;display:flex;align-items:end;justify-content:center;transition:bottom .12s}
 .cat.up{bottom:0}
