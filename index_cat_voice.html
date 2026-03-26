@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>ねこモグラたたき（画像版・30秒・ランキング送信ボタン版）</title>
+<style>
+:root{--bg:#fffaf0;--fg:#2b2b2b;--card:#fffaf5;--accent:#ff7a59;--line:#f1e0d0;--surface:#fff}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto;color:var(--fg);background:var(--bg);display:flex}
+.wrap{margin:auto;width:min(720px,94vw);min-height:100svh;display:flex;flex-direction:column;padding:14px}
+h1{margin:0 0 6px;font-size:24px}
+.sub{opacity:.8;margin:0 0 12px}
+.ui{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tag{background:var(--surface);border:1px solid var(--line);padding:6px 10px;border-radius:999px;font-weight:700}
+button{border:0;background:var(--accent);color:#fff;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+button:disabled{opacity:.6;cursor:not-allowed}
+input[type="text"]{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--fg);min-width:140px}
+select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg)}
+
+/* 盤面レイヤー: canvas(0) < grid(1) < 枠::after(5) */
+.board{position:relative;margin:12px 0;}
+.canvas{position:absolute;inset:0;pointer-events:none;z-index:0}
+.grid{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;z-index:1}
+
+.hole{position:relative;aspect-ratio:1;background:var(--card);border-radius:16px;overflow:hidden;
+      border:2px solid #d9c2af; outline:none; box-shadow:none}
+.hole::after{content:""; position:absolute; inset:0; border-radius:16px; pointer-events:none;
+             box-shadow: inset 0 0 0 2px #d9c2af; z-index:5}
+
+.cat{position:absolute;left:0;right:0;bottom:-100%;height:100%;display:flex;align-items:end;justify-content:center;transition:bottom .12s}
+.cat.up{bottom:0}
+.face{position:relative;width:82%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:none;border:0}
+.face img{width:100%;height:100%;object-fit:contain;display:block;user-select:none;-webkit-user-drag:none;filter: drop-shadow(0 2px 0 rgba(0,0,0,.08))}
+
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.end{padding:12px;background:var(--surface);border:1px dashed var(--line);border-radius:12px;display:none}
+.badges{display:flex;gap:6px;flex-wrap:wrap}
+.badge{font-size:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:4px 8px;border-radius:999px}
+.kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:12px}
+.notice{font-size:12px;opacity:.75}
+.footer{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.toggle{background:var(--surface);color:var(--fg);border:1px solid var(--line)}
+.small{font-size:12px;opacity:.8}
+
+/* ランキング表 */
+.table{width:100%; border-collapse:separate; border-spacing:0; background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+.table th,.table td{padding:8px 10px; border-bottom:1px solid var(--line); font-size:14px; color:var(--fg)}
+.table th{background:var(--card); text-align:left}
+.table tr:last-child td{border-bottom:none}
+.rankNo{width:48px; text-align:center; font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ねこモグラたたき</h1>
+  <p class="sub">30秒固定・猫画像版。Spaceで一時停止。ランキングはボタンで送信。</p>
+
+  <div class="row ui">
+    <span class="tag" id="score">スコア: 0</span>
+    <span class="tag" id="combo">コンボ: 0</span>
+    <span class="tag" id="time">残り: 30s</span>
+    <span class="tag" id="best">ベスト: 0</span>
+    <button id="start">スタート</button>
+    <button id="pause" class="toggle">一時停止 <span class="kbd">Space</span></button>
+    <button id="share" class="toggle">共有</button>
+  </div>
+
+  <div class="row">
+    <label>名前 <input id="player" type="text" placeholder="ゲスト"></label>
+    <label>難易度
+      <select id="diff">
+        <option value="easy">やさしい</option>
+        <option value="normal" selected>ふつう</option>
+        <option value="hard">むずい</option>
+      </select>
+    </label>
+    <button id="theme" class="toggle">ダーク</button>
+    <label class="small"><input type="checkbox" id="sound" checked> 効果音</label>
+    <label class="small"><input type="checkbox" id="vibe" checked> バイブ</label>
+  </div>
+
+  <div class="board">
+    <canvas class="canvas" id="fx"></canvas>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="end" id="end"></div>
+  <div class="row badges" id="badges"></div>
+
+  <h3 style="margin:14px 0 6px">🏆 ランキング（<span id="lbTitle">ふつう</span>）</h3>
+  <table class="table" id="lb">
+    <thead><tr><th class="rankNo">#</th><th>名前</th><th>スコア</th><th>日付</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <p class="notice">※ GASでオンライン保存。送信ボタンで明示的に登録します。</p>
+
+  <div class="footer">
+    <span class="small">© neko image</span>
+    <span class="small">実績: <span id="achCount">0</span></span>
+  </div>
+</div>
+
+<script>
+// === Leaderboard API (GAS) ===
+const API_BASE = 'https://script.google.com/macros/s/AKfycby_uAVg7tOc0AJu5pcIu3ZFhll8MnZYhE2Z_nPrwdUfOI1LFhajgwZkJM38gaYPZ7VAtg/exec'; // /exec
+const WRITE_SECRET = 'CHANGE_ME_32CHARS';
+
+// 画像
+const CAT_IMAGES = ["img/cat1.png","img/cat2.png","img/cat3.png"];
+CAT_IMAGES.forEach(src=>{ const i=new Image(); i.src=src; });
+
+// DOM
+const grid = document.getElementById('grid');
+const scoreEl = document.getElementById('score');
+const timeEl  = document.getElementById('time');
+const startBtn= document.getElementById('start');
+const endBox  = document.getElementById('end');
+const bestEl  = document.getElementById('best');
+const comboEl = document.getElementById('combo');
+const diffSel = document.getElementById('diff');
+const pauseBtn= document.getElementById('pause');
+const themeBtn= document.getElementById('theme');
+const soundChk= document.getElementById('sound');
+const vibeChk = document.getElementById('vibe');
+const badgesEl= document.getElementById('badges');
+const achCount= document.getElementById('achCount');
+const fxCanvas = document.getElementById('fx');
+const ctx = fxCanvas.getContext('2d');
+const playerInput = document.getElementById('player');
+const shareBtn = document.getElementById('share');
+const lbTable = document.getElementById('lb').querySelector('tbody');
+const lbTitle = document.getElementById('lbTitle');
+
+// 状態
+let cats=[],timer=null,spawner=null,running=false,paused=false;
+let score=0,left=30,combo=0,fever=false,maxCombo=0,missCount=0;
+let upInterval=330,peekMin=440,peekMax=920; // normal
+let simultaneousMax=1; // 同時出現上限
+let postedOnce = false; // このゲーム1回で1投稿だけにする
+
+// 名前保存
+playerInput.value = localStorage.getItem('player_name') || '';
+playerInput.addEventListener('change', ()=>localStorage.setItem('player_name', playerInput.value.trim()));
+
+// Util
+const ri=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const pick=arr=>arr[ri(0,arr.length-1)];
+function todayStr(){ const d=new Date(); const m=d.getMonth()+1, day=d.getDate();
+  return `${d.getFullYear()}/${String(m).padStart(2,'0')}/${String(day).padStart(2,'0')}`;}
+function resizeCanvas(){
+  const r=grid.getBoundingClientRect(), w=r.width;
+  fxCanvas.width=w*devicePixelRatio; fxCanvas.height=w*devicePixelRatio;
+  fxCanvas.style.width=w+'px'; fxCanvas.style.height=w+'px';
+}
+addEventListener('resize', resizeCanvas);
+
+// 盤面
+function makeGrid(){
+  grid.innerHTML=''; cats=[];
+  for(let i=0;i<9;i++){
+    const hole=document.createElement('div'); hole.className='hole';
+    const cat =document.createElement('div'); cat.className='cat';
+    const face=document.createElement('div'); face.className='face';
+    const img =document.createElement('img'); img.src=pick(CAT_IMAGES); img.alt='cat';
+    face.appendChild(img); cat.appendChild(face); hole.appendChild(cat); grid.appendChild(hole);
+    cats.push(cat);
+    hole.addEventListener('pointerdown',()=>{
+      if(!running||paused) return;
+      if(cat.classList.contains('up')) hit(cat); else miss();
+    },{passive:true});
+  }
+  resizeCanvas();
+}
+makeGrid();
+
+// 難易度
+function applyDiff(){
+  const d=diffSel.value;
+  if(d==='easy')  { upInterval=550; peekMin=800; peekMax=1400; simultaneousMax=1; }
+  if(d==='normal'){ upInterval=350; peekMin=500; peekMax=950;  simultaneousMax=2; }
+  if(d==='hard')  { upInterval=200; peekMin=300; peekMax=550;  simultaneousMax=3; }
+  updateBest(); renderLeaderboard();
+  lbTitle.textContent = diffSel.selectedOptions[0].text;
+}
+applyDiff(); diffSel.addEventListener('change', applyDiff);
+
+// 音/バイブ
+let audioCtx=null;
+function beep(freq=600,ms=80,vol=0.06){
+  if(!soundChk.checked) return;
+  if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch{} }
+  if(!audioCtx) return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type='square'; o.frequency.value=freq; g.gain.value=vol;
+  o.connect(g); g.connect(audioCtx.destination); o.start(); setTimeout(()=>o.stop(), ms);
+}
+function vibro(ms=20){ if(vibeChk.checked && navigator.vibrate) navigator.vibrate(ms); }
+
+// パーティクル
+let particles=[];
+function burstAt(el,color='#ff7a59'){
+  const r=el.getBoundingClientRect(), g=grid.getBoundingClientRect();
+  const x=((r.left+r.width/2)-g.left)*devicePixelRatio;
+  const y=((r.top+r.height/2)-g.top)*devicePixelRatio;
+  for(let i=0;i<14;i++){
+    particles.push({x,y,vx:(Math.random()-0.5)*3*devicePixelRatio,vy:(Math.random()-0.7)*3*devicePixelRatio,a:1,r:(3+Math.random()*3)*devicePixelRatio,c:color});
+  }
+}
+function renderFX(){
+  ctx.clearRect(0,0,fxCanvas.width,fxCanvas.height);
+  particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.06*devicePixelRatio;p.a-=0.02});
+  particles=particles.filter(p=>p.a>0);
+  for(const p of particles){ ctx.globalAlpha=p.a; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=p.c; ctx.fill(); }
+  ctx.globalAlpha=1; requestAnimationFrame(renderFX);
+}
+renderFX();
+
+// ゲーム
+let accel=null;
+function showRandomCat(){
+  if(!running||paused) return;
+  // 同時出現数を難易度に応じて決定
+  const upNow = cats.filter(c=>c.classList.contains('up')).length;
+  const toSpawn = Math.min(simultaneousMax - upNow, ri(1, simultaneousMax));
+  for(let s=0; s<toSpawn; s++){
+    const available = cats.filter(c=>!c.classList.contains('up'));
+    if(!available.length) break;
+    const cat = pick(available);
+    if(Math.random()<0.25){ const img=cat.querySelector('img'); img.src=pick(CAT_IMAGES); }
+    cat.classList.add('up');
+    const upMs=ri(peekMin,peekMax)*(fever?0.85:1);
+    setTimeout(()=>cat.classList.remove('up'), upMs);
+  }
+}
+function loopCats(){ spawner=setInterval(showRandomCat, upInterval); }
+function startAccel(){
+  if(accel) clearInterval(accel);
+  accel=setInterval(()=>{
+    if(!running||paused) return;
+    upInterval=Math.max(200, upInterval-3);
+    clearInterval(spawner); loopCats();
+  },3000);
+}
+function hit(cat){
+  if(!running||paused||!cat.classList.contains('up')) return;
+  cat.classList.remove('up');
+  score += fever?2:1; combo++; if(combo>0 && combo%10===0){ fever=true; setTimeout(()=>fever=false,4000); }
+  if(combo>maxCombo) maxCombo=combo; updateUI();
+  beep(fever?900:700,70); vibro(10); burstAt(cat, fever?'#ff3e9e':'#ff7a59');
+}
+function miss(){
+  if(!running||paused) return;
+  missCount++; score=Math.max(0,score-1); combo=0; fever=false; updateUI(); beep(280,90,0.05); vibro(20);
+}
+function tick(){
+  if(!running||paused) return;
+  left--; timeEl.textContent=`残り: ${left}s`; if(left<=0) endGame();
+}
+function startGame(){
+  applyDiff(); // 難易度パラメータをリセット
+  running=true; paused=false; combo=0; fever=false; maxCombo=0; missCount=0; score=0; left=30;
+  postedOnce=false;
+  updateUI(); endBox.style.display='none'; startBtn.disabled=true;
+  loopCats(); timer=setInterval(tick,1000); startAccel();
+}
+function endGame(){
+  running=false; clearInterval(timer); clearInterval(spawner); clearInterval(accel);
+  startBtn.disabled=false; cats.forEach(c=>c.classList.remove('up'));
+  const oldBest = getBest(diffSel.value);
+  updateBest(true); checkAchievements();
+  // 終了UI＋送信ボタン
+  const me = escapeHtml((playerInput.value||'ゲスト').trim());
+  endBox.innerHTML = `
+    <strong>終了！</strong> スコア <b>${score}</b>（${diffSel.selectedOptions[0].text}）。
+    コンボ最大 <b>${maxCombo}</b>。ベスト <b>${getBest(diffSel.value)}</b><br>
+    <div class="row" style="margin-top:10px">
+      <button id="sendScoreBtn" class="toggle">ランキングに送信</button>
+      <span id="sendStatus" class="small"></span>
+    </div>
+    <div class="small">送信名：${me} / 難易度：${diffSel.value}</div>
+  `;
+  endBox.style.display='block';
+  if(getBest(diffSel.value) > oldBest){ beep(1100,140,0.08); }
+
+  // ボタンの動作
+  const btn = document.getElementById('sendScoreBtn');
+  const st  = document.getElementById('sendStatus');
+  btn.addEventListener('click', async ()=>{
+    if(postedOnce){ st.textContent=' すでに送信済み'; return; }
+    btn.disabled = true;
+    st.textContent = ' 送信中…';
+    try{
+      await postLeaderboard(diffSel.value,(playerInput.value||'ゲスト').trim(),score,todayStr());
+      postedOnce = true;
+      st.textContent = ' 送信完了';
+      await new Promise(r=>setTimeout(r,300));
+      await renderLeaderboard();
+    }catch(e){
+      btn.disabled = false;
+      st.textContent = ' 送信失敗（通信エラー）';
+      console.warn(e);
+    }
+  }, {once:false});
+}
+
+// UI
+function updateUI(){ scoreEl.textContent=`スコア: ${score}`; comboEl.textContent=`コンボ: ${combo}${fever?'（x2）':''}`; timeEl.textContent=`残り: ${left}s`; }
+function getBest(key){ return +(localStorage.getItem('best_'+key) || 0); }
+function setBest(key,val){ localStorage.setItem('best_'+key, String(val)); }
+function updateBest(trySave=false){ const key=diffSel.value; if(trySave && score>getBest(key)) setBest(key,score); bestEl.textContent='ベスト: '+getBest(key); }
+updateBest();
+
+// 実績
+const ACH=[{id:'first',cond:()=>score>0,label:'初クリア'},{id:'30',cond:()=>score>=30,label:'30点'},{id:'50',cond:()=>score>=50,label:'50点'},{id:'nomiss',cond:()=>score>0&&missCount===0,label:'ノーミス'}];
+function hasA(id){ return localStorage.getItem('ach_'+id)==='1'; }
+function setA(id){ localStorage.setItem('ach_'+id,'1'); }
+function renderBadges(){ badgesEl.innerHTML=''; let c=0; for(const a of ACH){ const g=hasA(a.id); if(g)c++; const s=document.createElement('span'); s.className='badge'; s.textContent=(g?'🏅 ':'⬜ ')+a.label; badgesEl.appendChild(s);} achCount.textContent=c; }
+renderBadges();
+function checkAchievements(){ let news=[]; for(const a of ACH){ if(!hasA(a.id) && a.cond()){ setA(a.id); news.push(a.label);} } if(news.length){ renderBadges(); endBox.innerHTML+=`<br><b>実績解除：</b> ${news.join(' / ')}`; beep(1000,120,0.07); vibro(40); } maxCombo=0; }
+
+// ランキング（オンライン/GAS）
+async function fetchLeaderboard(diff){
+  const url = `${API_BASE}?diff=${encodeURIComponent(diff)}&t=${Date.now()}`; // キャッシュ破り
+  const res = await fetch(url, { cache: 'no-store' });
+  const j = await res.json();
+  return (j && j.rows) || [];
+}
+async function postLeaderboard(diff, name, score, date){
+  // まずは通常POST（読めるなら結果も読める）
+  try{
+    const res = await fetch(API_BASE, {
+      method:'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ diff, name, score, date, secret: WRITE_SECRET })
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    return;
+  }catch(_){
+    // CORSなどで失敗する環境用にフォールバック（no-cors）
+    await fetch(API_BASE, {
+      method:'POST',
+      mode:'no-cors',
+      headers: { 'Content-Type':'text/plain' },
+      body: JSON.stringify({ diff, name, score, date, secret: WRITE_SECRET })
+    });
+  }
+}
+async function renderLeaderboard(){
+  const rows = await fetchLeaderboard(diffSel.value);
+  lbTable.innerHTML = '';
+  if(!rows.length){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="rankNo">-</td><td colspan="3" style="opacity:.7">まだ記録がありません</td>`;
+    lbTable.appendChild(tr); return;
+  }
+  rows.forEach((row,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td class="rankNo">${i+1}</td><td>${escapeHtml(row.name)}</td><td><b>${row.score}</b></td><td>${row.date}</td>`;
+    lbTable.appendChild(tr);
+  });
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+shareBtn.addEventListener('click', async ()=>{
+  const txt = `ねこモグラたたき（${diffSel.selectedOptions[0].text}）でスコア ${score}！`;
+  const url = location.href;
+  if (navigator.share){ try{ await navigator.share({title:'ねこモグラたたき', text:txt, url}); }catch{} }
+  else { prompt('このURLをシェア', url); }
+});
+
+// Pause / Theme
+function togglePause(){ if(!running) return; paused=!paused; pauseBtn.textContent=paused?'再開 (Space)':'一時停止 (Space)'; }
+pauseBtn.addEventListener('click',togglePause);
+document.addEventListener('keydown',e=>{ if(e.code==='Space'){ e.preventDefault(); togglePause(); } });
+let dark=false;
+themeBtn.addEventListener('click',()=>{ dark=!dark;
+  document.documentElement.style.setProperty('--bg', dark?'#121212':'#fffaf0');
+  document.documentElement.style.setProperty('--fg', dark?'#eaeaea':'#2b2b2b');
+  document.documentElement.style.setProperty('--card', dark?'#1d1d1d':'#fffaf5');
+  document.documentElement.style.setProperty('--surface', dark?'#2a2a2a':'#fff');
+  document.documentElement.style.setProperty('--line', dark?'#444':'#f1e0d0');
+  document.documentElement.style.setProperty('--accent', dark?'#ff8c6b':'#ff7a59');
+  themeBtn.textContent = dark?'ライト':'ダーク';
+});
+
+// 仕上げ
+document.addEventListener('gesturestart', e=>e.preventDefault());
+document.addEventListener('contextmenu', e=>e.preventDefault(), {capture:true});
+startBtn.addEventListener('click', startGame);
+window.addEventListener('load', renderLeaderboard);
+</script>
+</body>
+</html>
