@@ -50,10 +50,6 @@ select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background
 .table th{background:var(--card); text-align:left}
 .table tr:last-child td{border-bottom:none}
 .rankNo{width:48px; text-align:center; font-weight:700}
-<<<<<<< HEAD
-
-=======
->>>>>>> feature/cat-voice-and-rainbow
 /* レインボー猫エフェクト */
 .cat.rainbow .face img {
   filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
@@ -119,7 +115,7 @@ select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background
 <script>
 // === Leaderboard API (GAS) ===
 const API_BASE = 'https://script.google.com/macros/s/AKfycby_uAVg7tOc0AJu5pcIu3ZFhll8MnZYhE2Z_nPrwdUfOI1LFhajgwZkJM38gaYPZ7VAtg/exec'; // /exec
-const WRITE_SECRET = 'CHANGE_ME_32CHARS';
+const WRITE_SECRET = 'NEKO_SECRET_2024_PRO_GOLD';
 
 // 画像
 const CAT_IMAGES = ["img/cat1.png","img/cat2.png","img/cat3.png"];
@@ -204,6 +200,8 @@ applyDiff(); diffSel.addEventListener('change', applyDiff);
 
 // 音/バイブ
 let audioCtx=null;
+const meowAudio = new Audio('sounds/meow.ogg'); // Fallback to synth if fails
+meowAudio.volume = 0.3;
 function beep(type='hit'){
   if(!soundChk.checked) return;
   if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch{} }
@@ -214,17 +212,13 @@ function beep(type='hit'){
   o.connect(g); g.connect(audioCtx.destination);
 
   if(type==='hit'){
-<<<<<<< HEAD
-    o.type='triangle';
-    o.frequency.setValueAtTime(400, now);
-    o.frequency.exponentialRampToValueAtTime(600, now+0.1);
-    o.frequency.exponentialRampToValueAtTime(500, now+0.3);
-    g.gain.setValueAtTime(0.1, now);
-    g.gain.linearRampToValueAtTime(0.1, now+0.05);
-    g.gain.linearRampToValueAtTime(0, now+0.3);
-    o.start(now); o.stop(now+0.3);
-=======
     // Meow sound effect (Fast rise, slow fall)
+    try {
+      const clone = meowAudio.cloneNode();
+      clone.volume = 0.3;
+      clone.play().catch(()=>{});
+    } catch(e) {}
+    // Keep synth as secondary/backup layer
     o.type = 'triangle';
     o.frequency.setValueAtTime(400, now);
     o.frequency.exponentialRampToValueAtTime(800, now + 0.05);
@@ -233,7 +227,6 @@ function beep(type='hit'){
     g.gain.linearRampToValueAtTime(0.1, now + 0.03);
     g.gain.linearRampToValueAtTime(0, now + 0.25);
     o.start(now); o.stop(now + 0.25);
->>>>>>> feature/cat-voice-and-rainbow
   } else if(type==='miss'){
     o.type='sawtooth';
     o.frequency.setValueAtTime(200, now);
@@ -251,16 +244,10 @@ function beep(type='hit'){
     g.gain.linearRampToValueAtTime(0, now+0.3);
     o.start(now); o.stop(now+0.3);
   } else if(type==='rainbow'){
-<<<<<<< HEAD
-    o.type='sine';
-    o.frequency.setValueAtTime(800, now);
-    o.frequency.exponentialRampToValueAtTime(1200, now+0.1);
-=======
     // Sparkly meow
     o.type='sine';
     o.frequency.setValueAtTime(800, now);
     o.frequency.exponentialRampToValueAtTime(1500, now+0.1);
->>>>>>> feature/cat-voice-and-rainbow
     o.frequency.exponentialRampToValueAtTime(1000, now+0.4);
     g.gain.setValueAtTime(0, now);
     g.gain.linearRampToValueAtTime(0.12, now+0.05);
@@ -277,10 +264,7 @@ function beep(type='hit'){
     g.gain.linearRampToValueAtTime(0, now+0.4);
     o.start(now); o.stop(now+0.4);
   } else {
-<<<<<<< HEAD
     // default short beep
-=======
->>>>>>> feature/cat-voice-and-rainbow
     o.type='square'; o.frequency.value=600; g.gain.value=0.06;
     o.start(); setTimeout(()=>o.stop(), 80);
   }
@@ -423,10 +407,16 @@ function checkAchievements(){ let news=[]; for(const a of ACH){ if(!hasA(a.id) &
 
 // ランキング（オンライン/GAS）
 async function fetchLeaderboard(diff){
-  const url = `${API_BASE}?diff=${encodeURIComponent(diff)}&t=${Date.now()}`; // キャッシュ破り
-  const res = await fetch(url, { cache: 'no-store' });
-  const j = await res.json();
-  return (j && j.rows) || [];
+  try {
+    const url = `${API_BASE}?diff=${encodeURIComponent(diff)}&t=${Date.now()}`; // キャッシュ破り
+    const res = await fetch(url, { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j = await res.json();
+    return (j && j.rows) || [];
+  } catch(e) {
+    console.error('Failed to fetch leaderboard:', e);
+    return [];
+  }
 }
 async function postLeaderboard(diff, name, score, date){
   // まずは通常POST（読めるなら結果も読める）
