@@ -191,8 +191,8 @@ makeGrid();
 function applyDiff(){
   const d=diffSel.value;
   if(d==='easy')  { upInterval=550; peekMin=800; peekMax=1400; simultaneousMax=1; }
-  if(d==='normal'){ upInterval=350; peekMin=500; peekMax=950;  simultaneousMax=2; }
-  if(d==='hard')  { upInterval=200; peekMin=300; peekMax=550;  simultaneousMax=3; }
+  if(d==='normal'){ upInterval=350; peekMin=500; peekMax=950;  simultaneousMax=1; }
+  if(d==='hard')  { upInterval=200; peekMin=300; peekMax=550;  simultaneousMax=2; }
   updateBest(); renderLeaderboard();
   lbTitle.textContent = diffSel.selectedOptions[0].text;
 }
@@ -284,33 +284,35 @@ renderFX();
 let accel=null;
 function showRandomCat(){
   if(!running||paused) return;
-  // 同時出現数を難易度に応じて決定
   const upNow = cats.filter(c=>c.classList.contains('up')).length;
-  const toSpawn = Math.min(simultaneousMax - upNow, ri(1, simultaneousMax));
-  for(let s=0; s<toSpawn; s++){
-    const available = cats.filter(c=>!c.classList.contains('up'));
-    if(!available.length) break;
-    const cat = pick(available);
-    const isRainbow = Math.random() < RAINBOW_PROB;
-    if(isRainbow){
-      cat.classList.add('rainbow');
-      cat.querySelector('img').src = pick(CAT_IMAGES);
-    } else {
-      cat.classList.remove('rainbow');
-      if(Math.random()<0.25){ const img=cat.querySelector('img'); img.src=pick(CAT_IMAGES); }
-    }
-    cat.classList.add('up');
-    const upMs=ri(peekMin,peekMax)*(fever?0.85:1)*(isRainbow?0.6:1); // レインボーは短い
-    setTimeout(()=>cat.classList.remove('up'), upMs);
+  if(upNow >= simultaneousMax) return;
+  const available = cats.filter(c=>!c.classList.contains('up'));
+  if(!available.length) return;
+  const cat = pick(available);
+  const isRainbow = Math.random() < RAINBOW_PROB;
+  if(isRainbow){
+    cat.classList.add('rainbow');
+    cat.querySelector('img').src = pick(CAT_IMAGES);
+  } else {
+    cat.classList.remove('rainbow');
+    if(Math.random()<0.25){ const img=cat.querySelector('img'); img.src=pick(CAT_IMAGES); }
   }
+  cat.classList.add('up');
+  const upMs=ri(peekMin,peekMax)*(fever?0.85:1)*(isRainbow?0.6:1);
+  setTimeout(()=>cat.classList.remove('up'), upMs);
 }
-function loopCats(){ spawner=setInterval(showRandomCat, upInterval); }
+function loopCats(){
+  if(spawner) clearTimeout(spawner);
+  if(!running||paused) return;
+  showRandomCat();
+  const next = upInterval * (0.7 + Math.random() * 0.8);
+  spawner = setTimeout(loopCats, next);
+}
 function startAccel(){
   if(accel) clearInterval(accel);
   accel=setInterval(()=>{
     if(!running||paused) return;
     upInterval=Math.max(200, upInterval-3);
-    clearInterval(spawner); loopCats();
   },3000);
 }
 function hit(cat){
@@ -339,7 +341,7 @@ function startGame(){
   loopCats(); timer=setInterval(tick,1000); startAccel();
 }
 function endGame(){
-  running=false; clearInterval(timer); clearInterval(spawner); clearInterval(accel);
+  running=false; clearInterval(timer); clearTimeout(spawner); clearInterval(accel);
   startBtn.disabled=false; cats.forEach(c=>c.classList.remove('up'));
   const oldBest = getBest(diffSel.value);
   updateBest(true); checkAchievements();
