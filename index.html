@@ -120,7 +120,8 @@ const WRITE_SECRET = 'CHANGE_ME_32CHARS';
 
 // 画像
 const CAT_IMAGES = ["img/cat1.png","img/cat2.png","img/cat3.png"];
-CAT_IMAGES.forEach(src=>{ const i=new Image(); i.src=src; });
+const RAINBOW_IMAGE = "img/cat4.png";
+[...CAT_IMAGES, RAINBOW_IMAGE].forEach(src=>{ const i=new Image(); i.src=src; });
 
 // DOM
 const grid = document.getElementById('grid');
@@ -292,7 +293,7 @@ function showRandomCat(){
   const isRainbow = Math.random() < RAINBOW_PROB;
   if(isRainbow){
     cat.classList.add('rainbow');
-    cat.querySelector('img').src = pick(CAT_IMAGES);
+    cat.querySelector('img').src = RAINBOW_IMAGE;
   } else {
     cat.classList.remove('rainbow');
     if(Math.random()<0.25){ const img=cat.querySelector('img'); img.src=pick(CAT_IMAGES); }
