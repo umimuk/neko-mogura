@@ -115,7 +115,7 @@ select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background
 <script>
 // === Leaderboard API (GAS) ===
 const API_BASE = 'https://script.google.com/macros/s/AKfycby_uAVg7tOc0AJu5pcIu3ZFhll8MnZYhE2Z_nPrwdUfOI1LFhajgwZkJM38gaYPZ7VAtg/exec'; // /exec
-const WRITE_SECRET = 'NEKO_SECRET_2024_PRO_GOLD';
+const WRITE_SECRET = 'k9d2f8v4n1m7q3x5z8p0w2r4t6y1u3i9';
 
 // 画像
 const CAT_IMAGES = ["img/cat1.png","img/cat2.png","img/cat3.png"];
@@ -198,76 +198,22 @@ function applyDiff(){
 }
 applyDiff(); diffSel.addEventListener('change', applyDiff);
 
-// 音/バイブ
-let audioCtx=null;
-const meowAudio = new Audio('sounds/meow.ogg'); // Fallback to synth if fails
-meowAudio.volume = 0.3;
+// 音/バイブ (修正: サウンドファイルを使用)
+const SE = {
+  hit: new Audio('sounds/meow.mp3'),
+  miss: new Audio('sounds/miss.mp3'),
+  fever: new Audio('sounds/fever.mp3'),
+  rainbow: new Audio('sounds/rainbow.mp3'),
+  best: new Audio('sounds/best.mp3')
+};
+// プリロード
+Object.values(SE).forEach(a => { a.load(); a.volume = 0.3; });
+
 function beep(type='hit'){
   if(!soundChk.checked) return;
-  if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch{} }
-  if(!audioCtx) return;
-  const now = audioCtx.currentTime;
-  const o = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  o.connect(g); g.connect(audioCtx.destination);
-
-  if(type==='hit'){
-    // Meow sound effect (Fast rise, slow fall)
-    try {
-      const clone = meowAudio.cloneNode();
-      clone.volume = 0.3;
-      clone.play().catch(()=>{});
-    } catch(e) {}
-    // Keep synth as secondary/backup layer
-    o.type = 'triangle';
-    o.frequency.setValueAtTime(400, now);
-    o.frequency.exponentialRampToValueAtTime(800, now + 0.05);
-    o.frequency.exponentialRampToValueAtTime(500, now + 0.25);
-    g.gain.setValueAtTime(0, now);
-    g.gain.linearRampToValueAtTime(0.1, now + 0.03);
-    g.gain.linearRampToValueAtTime(0, now + 0.25);
-    o.start(now); o.stop(now + 0.25);
-  } else if(type==='miss'){
-    o.type='sawtooth';
-    o.frequency.setValueAtTime(200, now);
-    o.frequency.linearRampToValueAtTime(100, now+0.2);
-    g.gain.setValueAtTime(0.05, now);
-    g.gain.linearRampToValueAtTime(0, now+0.2);
-    o.start(now); o.stop(now+0.2);
-  } else if(type==='fever'){
-    o.type='triangle';
-    o.frequency.setValueAtTime(600, now);
-    o.frequency.exponentialRampToValueAtTime(900, now+0.1);
-    o.frequency.exponentialRampToValueAtTime(800, now+0.3);
-    g.gain.setValueAtTime(0.1, now);
-    g.gain.linearRampToValueAtTime(0.1, now+0.05);
-    g.gain.linearRampToValueAtTime(0, now+0.3);
-    o.start(now); o.stop(now+0.3);
-  } else if(type==='rainbow'){
-    // Sparkly meow
-    o.type='sine';
-    o.frequency.setValueAtTime(800, now);
-    o.frequency.exponentialRampToValueAtTime(1500, now+0.1);
-    o.frequency.exponentialRampToValueAtTime(1000, now+0.4);
-    g.gain.setValueAtTime(0, now);
-    g.gain.linearRampToValueAtTime(0.12, now+0.05);
-    g.gain.linearRampToValueAtTime(0, now+0.4);
-    o.start(now); o.stop(now+0.4);
-  } else if(type==='best'){
-    o.type='triangle';
-    o.frequency.setValueAtTime(500, now);
-    o.frequency.exponentialRampToValueAtTime(1000, now+0.1);
-    o.frequency.exponentialRampToValueAtTime(800, now+0.2);
-    o.frequency.exponentialRampToValueAtTime(1200, now+0.4);
-    g.gain.setValueAtTime(0, now);
-    g.gain.linearRampToValueAtTime(0.1, now+0.05);
-    g.gain.linearRampToValueAtTime(0, now+0.4);
-    o.start(now); o.stop(now+0.4);
-  } else {
-    // default short beep
-    o.type='square'; o.frequency.value=600; g.gain.value=0.06;
-    o.start(); setTimeout(()=>o.stop(), 80);
-  }
+  const s = SE[type] || SE.hit;
+  s.currentTime = 0;
+  s.play().catch(()=>{});
 }
 function vibro(ms=20){ if(vibeChk.checked && navigator.vibrate) navigator.vibrate(ms); }
 
@@ -410,11 +356,11 @@ async function fetchLeaderboard(diff){
   try {
     const url = `${API_BASE}?diff=${encodeURIComponent(diff)}&t=${Date.now()}`; // キャッシュ破り
     const res = await fetch(url, { cache: 'no-store' });
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const j = await res.json();
     return (j && j.rows) || [];
-  } catch(e) {
-    console.error('Failed to fetch leaderboard:', e);
+  } catch (e) {
+    console.warn('Leaderboard fetch failed:', e);
     return [];
   }
 }
